@@ -5,6 +5,8 @@ from pywinauto.keyboard import send_keys
 import keyboard
 import time
 from tkinter import Tk, filedialog
+import warnings
+warnings.simplefilter('ignore', category=UserWarning) #hide the 32-bit python warning
 
 def main():
     root = Tk() # pointing root to Tk() to use it as Tk() in program.
@@ -17,16 +19,23 @@ def main():
     quests = infile.read()
     infile.close()
 
-    quest_re = re.compile(r'^(\u27a4.+?\*\* \*\*$)', re.MULTILINE | re.DOTALL)
-    quest_arr = quest_re.findall(quests)
+    quest_re = re.compile(r'^([\u27a4|\u25E2].+?\*\* \*\*$)', re.MULTILINE | re.DOTALL) #regex for each quest block
+    quest_arr = quest_re.findall(quests) # gets a list of all the quests
 
-    input('Enter any key when you are in the correct channel') #prep for pasting the quests
+    input('Enter any key when you are in the desired channel') #prep for pasting the quests
     temp = []
-
+    #not sending last quest(s) because it wasn't full
     while len(quest_arr) >=1: # keep going until no more quests to post
+        if get_list_length(temp) + get_list_length(quest_arr) <= 2000: #sum of all remaining quests length is < 2000
+            temp = quest_arr #todo we can just get all the quests
+            pyperclip.copy('\n'.join(temp))
+            quest_arr.clear()
+            send_to_discord()
+            quit()
+    
         if get_list_length(temp) + len(quest_arr[0]) <= 2000: # if another quest will not exceed the discord char limit, add it to the list
             temp.append(quest_arr.pop(0))
-        else: # if we can't add any more quests without going over word limit
+        else: # if we can't add any more quests without going over word limit; get_list_length(temp) + len(quest_arr[0]) >= 2000
             pyperclip.copy('\n'.join(temp))
             temp.clear()
             send_to_discord()
@@ -37,21 +46,12 @@ def send_to_discord():
     window = app.window(title_re='.*Discord') # find application window using regex on program name
     
     window.set_focus()
+
     send_keys('^v')
 
     #wait for user to press enter; send the message in channel
-    while True: # loop that 
-        try:
-            if keyboard.is_pressed('enter'):
-                print('enter key has been pressed')
-                time.sleep(0.25) #!change back to 1 ---- small delay to prevent user from spamming
-                break
-        except KeyboardInterrupt:
-            print('\nDone Reading input. Keyboard Interupt.')
-            break
-        except Exception as e:
-            print(e)
-            break
+    keyboard.wait(hotkey='enter')
+    time.sleep(0.2)
    
 def get_list_length(list):
     total = 0
